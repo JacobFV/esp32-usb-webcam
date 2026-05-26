@@ -37,8 +37,15 @@ Current host state recorded on 2026-05-26:
 - The plugged board currently appears as `1a86:55d3 QinHeng Electronics USB Single Serial`.
 - `/dev/ttyACM0` exists.
 - The previous `/dev/video0` UVC node is not currently present.
-- A physical replug/reset or bootloader/app reset may be needed before the next
-  flash and live capture attempt.
+- Upload to `/dev/ttyACM0` failed with `No serial data received` after the
+  reliable-mode firmware change.
+- DTR/RTS toggles and a 1200-baud touch did not move the device out of
+  `1a86:55d3`.
+- The user then unplugged a servo driver board and `/dev/ttyACM0` /
+  `1a86:55d3` disappeared, so that serial device was likely not the ESP32-S3
+  webcam. Esptool never connected and did not flash it.
+- A physical replug/reset or BOOT/RESET sequence is likely needed before the
+  next flash and live capture attempt.
 
 ## Known Good Proof
 
@@ -108,6 +115,12 @@ ls -l /dev/v4l/by-id/
 Then test frame capture:
 
 ```bash
+tools/verify_uvc.py --loops 10
+```
+
+Or manually:
+
+```bash
 python - <<'PY'
 import cv2, os, time
 
@@ -154,6 +167,18 @@ components/usb_device_uvc/
 That vendoring is intentional. The managed component caused a duplicate
 `usb_descriptors.c.o` action in PlatformIO. The local component builds
 `tusb/usb_descriptors.c` directly and uses explicit version macros.
+
+The current firmware advertises conservative MJPEG modes for normal webcam
+apps:
+
+- `640x480 @ 15fps`
+- `480x320 @ 30fps`
+- `320x240 @ 30fps`
+- `160x120 @ 30fps`
+
+The default is VGA. This avoids the earlier HD default, which could make
+ordinary host apps choose a mode larger than the ESP32-S3 full-speed USB path
+could reliably deliver.
 
 ## Failure Modes Already Seen
 

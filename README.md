@@ -51,7 +51,28 @@ On the verified setup the device appeared as:
 /dev/v4l/by-id/usb-Espressif_ESP_UVC_Device_12345678-video-index0 -> ../../video0
 ```
 
+The firmware advertises MJPEG UVC modes that fit the ESP32-S3 full-speed USB
+link reliably:
+
+- `640x480 @ 15fps`
+- `480x320 @ 30fps`
+- `320x240 @ 30fps`
+- `160x120 @ 30fps`
+
 ## Verify A Frame
+
+For the normal-webcam smoke test on Linux, run the repeated open/read/release
+check. It defaults to the by-id UVC path when present and saves the first frame:
+
+```bash
+tools/verify_uvc.py --loops 10
+```
+
+The script should print ten successful frame reads. This catches the common
+failure mode where the first app can open the camera but later app switches or
+reopens hang.
+
+For a one-off OpenCV check:
 
 ```bash
 python - <<'PY'
@@ -93,6 +114,9 @@ The known-good board returned a `640x480` frame and saved a real image from
 
 - If `lsusb` shows only a serial/JTAG device, reset the board after flashing or
   verify that the UVC firmware actually uploaded.
+- If upload fails with `No serial data received`, put the XIAO ESP32S3 Sense in
+  bootloader mode manually, then retry the `pio run -t upload` command. On this
+  board that usually means holding BOOT, tapping RESET, then releasing BOOT.
 - If no `/dev/video*` node appears, check `dmesg -w` while plugging in the
   board.
 - If build errors mention `driver/ledc.h`, confirm PlatformIO is using

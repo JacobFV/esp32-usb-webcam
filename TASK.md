@@ -31,6 +31,25 @@ Current local hardware state as of 2026-05-26:
 - No `/dev/v4l/by-id/usb-Espressif_ESP_UVC_Device_12345678-video-index0` symlink is currently present.
 - This means the next session should start by getting the board back into a clean flash/app state, then re-verifying UVC enumeration and frame capture.
 
+Update from 2026-05-26:
+- The advertised default mode was changed from HD to VGA so normal camera apps
+  do not select a mode that exceeds the ESP32-S3 full-speed USB/JPEG buffer.
+- Advertised MJPEG modes are now `640x480@15`, `480x320@30`, `320x240@30`,
+  and `160x120@30`.
+- The UVC transfer buffer was raised to 128 KiB and runtime support for
+  `160x120` was added.
+- `pio run` succeeds after deleting the ignored generated
+  `sdkconfig.seeed_xiao_esp32s3` and regenerating it from `sdkconfig.defaults`.
+- Upload to `/dev/ttyACM0` still failed with `No serial data received`.
+  DTR/RTS and 1200-baud reset attempts did not change the device out of
+  `1a86:55d3`. A physical BOOT/RESET or replug is likely required before the
+  next flash attempt.
+- After the user unplugged a servo driver board, `/dev/ttyACM0` and
+  `1a86:55d3` disappeared. Treat that failed upload target as likely not the
+  ESP32-S3 webcam. No flashing occurred because esptool never connected.
+- Added `tools/verify_uvc.py --loops 10` for repeated Linux V4L2
+  open/read/release verification.
+
 Important: do not reintroduce Wi-Fi/AP camera firmware.
 - Earlier HTTP/AP firmware was flashed and then rejected.
 - It was erased with `esptool.py erase_flash`.
