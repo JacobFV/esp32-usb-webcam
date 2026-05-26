@@ -1,0 +1,9 @@
+targets:
+  - esp32s3
+dependencies:
+  idf:
+    version: ">=5.0"
+  esp32-camera:
+    version: "2.0.15"
+  usb_device_uvc:
+    override_path: "../components/usb_device_uvc"
