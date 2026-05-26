@@ -44,8 +44,17 @@ Current host state recorded on 2026-05-26:
 - The user then unplugged a servo driver board and `/dev/ttyACM0` /
   `1a86:55d3` disappeared, so that serial device was likely not the ESP32-S3
   webcam. Esptool never connected and did not flash it.
-- A physical replug/reset or BOOT/RESET sequence is likely needed before the
-  next flash and live capture attempt.
+- The ESP32 later appeared as `303a:8000 Espressif ESP UVC Device` with
+  `/dev/video0` and `/dev/video1`. The `video-index0` path passed 10 repeated
+  OpenCV open/read/release cycles at `640x480`; `video-index1` timed out as a
+  capture source.
+- Descriptor inspection showed that live board was still running the older
+  image with frame index 1 as `1280x720`, not the committed VGA-default image.
+- Starting multiple capture clients concurrently reproduced the old reliability
+  issue: subsequent single-client reads timed out while UVC enumeration remained
+  present. A host `usbreset 303a:8000` then hung in the kernel.
+- A physical unplug/replug or BOOT/RESET sequence is required before the next
+  flash and live capture attempt.
 
 ## Known Good Proof
 

@@ -73,13 +73,17 @@ def main() -> int:
 
     device = os.path.realpath(args.device)
     save_path = Path(args.save) if args.save else None
-    print(f"device: {args.device} -> {device}")
-    for i in range(args.loops):
-        out = save_path if i == 0 else None
-        shape = capture_once(cv2, args.device, args.width, args.height, args.timeout, out)
-        print(f"{i + 1}/{args.loops}: read frame shape={shape}")
+    print(f"device: {args.device} -> {device}", flush=True)
+    try:
+        for i in range(args.loops):
+            out = save_path if i == 0 else None
+            shape = capture_once(cv2, args.device, args.width, args.height, args.timeout, out)
+            print(f"{i + 1}/{args.loops}: read frame shape={shape}", flush=True)
+    except TimeoutError as err:
+        print(f"capture failed: {err}", file=sys.stderr, flush=True)
+        return 1
     if save_path:
-        print(f"saved: {save_path} ({save_path.stat().st_size} bytes)")
+        print(f"saved: {save_path} ({save_path.stat().st_size} bytes)", flush=True)
     return 0
 
 

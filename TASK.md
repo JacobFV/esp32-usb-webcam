@@ -49,6 +49,18 @@ Update from 2026-05-26:
   ESP32-S3 webcam. No flashing occurred because esptool never connected.
 - Added `tools/verify_uvc.py --loops 10` for repeated Linux V4L2
   open/read/release verification.
+- The ESP32 later appeared as `303a:8000 Espressif ESP UVC Device` with
+  `/dev/video0` and `/dev/video1`. `/dev/video0` and the by-id `video-index0`
+  path passed 10 repeated `640x480` OpenCV open/read/release cycles.
+- Descriptor inspection showed the live board was still running the older image:
+  frame index 1 remained `1280x720`, so the VGA-default firmware commit had not
+  been flashed yet.
+- `/dev/video1` timed out when used as a capture source; use
+  `video-index0`/`/dev/video0` for verification.
+- Starting multiple capture clients concurrently reproduced the old reliability
+  problem: later single-client reads timed out even though UVC enumeration
+  remained present. A host `usbreset 303a:8000` then hung in the kernel. A
+  physical unplug/replug is required before more live testing.
 
 Important: do not reintroduce Wi-Fi/AP camera firmware.
 - Earlier HTTP/AP firmware was flashed and then rejected.
