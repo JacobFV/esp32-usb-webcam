@@ -34,7 +34,7 @@ static const char *TAG = "usb_webcam";
 #define CAMERA_FB_COUNT            2
 
 #if CONFIG_IDF_TARGET_ESP32S3
-#define UVC_MAX_FRAMESIZE_SIZE     (75*1024)
+#define UVC_MAX_FRAMESIZE_SIZE     (128*1024)
 #else
 #define UVC_MAX_FRAMESIZE_SIZE     (60*1024)
 #endif
@@ -165,7 +165,10 @@ static esp_err_t camera_start_cb(uvc_format_t format, int width, int height, int
         return ESP_ERR_NOT_SUPPORTED;
     }
 
-    if (width == 320 && height == 240) {
+    if (width == 160 && height == 120) {
+        frame_size = FRAMESIZE_QQVGA;
+        jpeg_quality = 10;
+    } else if (width == 320 && height == 240) {
         frame_size = FRAMESIZE_QVGA;
         jpeg_quality = 10;
     } else if (width == 480 && height == 320) {
