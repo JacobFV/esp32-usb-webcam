@@ -53,8 +53,16 @@ Current host state recorded on 2026-05-26:
 - Starting multiple capture clients concurrently reproduced the old reliability
   issue: subsequent single-client reads timed out while UVC enumeration remained
   present. A host `usbreset 303a:8000` then hung in the kernel.
-- A physical unplug/replug or BOOT/RESET sequence is required before the next
-  flash and live capture attempt.
+- After physical unplug/replug, the board re-enumerated as UVC and again passed
+  10 repeated `640x480` OpenCV reads from `video-index0`. A sequential FFmpeg
+  `640x480` MJPEG capture also succeeded.
+- A firmware-side recovery patch has been committed but not flashed. It drops
+  refused frame transfers instead of waiting forever, times out stale in-flight
+  transfers, resets the streaming endpoint on stream stop, and builds cleanly.
+- The connected board currently exposes UVC only and no
+  `/dev/ttyACM*`/serial-JTAG endpoint. There is no safe software flashing path
+  from this app state; flashing still requires ROM bootloader mode or a future
+  firmware reboot-to-bootloader path.
 
 ## Known Good Proof
 
@@ -188,6 +196,12 @@ apps:
 The default is VGA. This avoids the earlier HD default, which could make
 ordinary host apps choose a mode larger than the ESP32-S3 full-speed USB path
 could reliably deliver.
+
+The current component code also checks the return value from
+`tud_video_n_frame_xfer()`. If the USB stack refuses a transfer, the firmware
+drops that frame and resets the stream endpoint instead of marking the transfer
+busy forever. This is intended to make repeated app opens, closes, and app
+switches recover like a normal webcam.
 
 ## Failure Modes Already Seen
 

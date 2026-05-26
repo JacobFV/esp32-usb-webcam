@@ -61,6 +61,18 @@ Update from 2026-05-26:
   problem: later single-client reads timed out even though UVC enumeration
   remained present. A host `usbreset 303a:8000` then hung in the kernel. A
   physical unplug/replug is required before more live testing.
+- After physical replug, the board re-enumerated as UVC and again passed 10
+  repeated `640x480` reads from the `video-index0` by-id path. A sequential
+  FFmpeg `640x480` MJPEG read also succeeded.
+- Added a firmware-side stream recovery patch: failed
+  `tud_video_n_frame_xfer()` starts are now dropped instead of treated as
+  in-flight transfers forever, stale transfers time out and reset the streaming
+  endpoint, and stream-stop transitions flush endpoint/task state.
+- The patched firmware builds, but it is not flashed yet. The connected board
+  exposes UVC only and no `/dev/ttyACM*`/serial-JTAG endpoint, so there is no
+  safe software flashing path from the current app state. Flashing still
+  requires getting the ESP32-S3 into ROM serial/JTAG bootloader mode or adding a
+  firmware reboot-to-bootloader path in a future image.
 
 Important: do not reintroduce Wi-Fi/AP camera firmware.
 - Earlier HTTP/AP firmware was flashed and then rejected.
