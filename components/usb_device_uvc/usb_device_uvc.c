@@ -76,6 +76,16 @@ static inline uint32_t get_time_millis(void)
     return (uint32_t)(esp_timer_get_time() / 1000);
 }
 
+static uint8_t uvc_streaming_ep_addr(uint_fast8_t ctl_idx)
+{
+#if CONFIG_UVC_SUPPORT_TWO_CAM
+    return ctl_idx == 0 ? EPNUM_CAM1_VIDEO_IN : EPNUM_CAM2_VIDEO_IN;
+#else
+    (void)ctl_idx;
+    return EPNUM_CAM1_VIDEO_IN;
+#endif
+}
+
 static void tusb_device_task(void *arg)
 {
     while (1) {
@@ -145,6 +155,13 @@ static void video_task(void *arg)
         }
 
         if (!tud_video_n_streaming(0, 0)) {
+            if (already_start) {
+                if (s_uvc_device.user_config[0].stop_cb) {
+                    s_uvc_device.user_config[0].stop_cb(s_uvc_device.user_config[0].cb_ctx);
+                }
+                uvc_reset_streaming_ep(uvc_streaming_ep_addr(0));
+                ulTaskNotifyTake(pdTRUE, 0);
+            }
             already_start = 0;
             frame_num = 0;
             tx_busy = 0;
@@ -164,12 +181,16 @@ static void video_task(void *arg)
         }
 
         if (tx_busy) {
-            uint32_t xfer_done = ulTaskNotifyTake(pdTRUE, 1);
+            uint32_t xfer_done = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
             if (xfer_done == 0) {
-                continue;
+                ESP_LOGW(TAG, "frame transfer timeout, resetting stream endpoint");
+                uvc_reset_streaming_ep(uvc_streaming_ep_addr(0));
+                tx_busy = 0;
             }
             ++frame_num;
-            tx_busy = 0;
+            if (xfer_done) {
+                tx_busy = 0;
+            }
         }
 
         start_ms += s_uvc_device.interval_ms[0];
@@ -190,9 +211,14 @@ static void video_task(void *arg)
         frame_len = pic->len;
         memcpy(uvc_buffer, pic->buf, frame_len);
         s_uvc_device.user_config[0].fb_return_cb(pic, s_uvc_device.user_config[0].cb_ctx);
-        tx_busy = 1;
-        tud_video_n_frame_xfer(0, 0, (void *)uvc_buffer, frame_len);
-        ESP_LOGD(TAG, "frame %" PRIu32 " transfer start, size %" PRIu32, frame_num, frame_len);
+        if (tud_video_n_frame_xfer(0, 0, (void *)uvc_buffer, frame_len)) {
+            tx_busy = 1;
+            ESP_LOGD(TAG, "frame %" PRIu32 " transfer start, size %" PRIu32, frame_num, frame_len);
+        } else {
+            ESP_LOGW(TAG, "frame %" PRIu32 " transfer refused, dropping frame", frame_num);
+            uvc_reset_streaming_ep(uvc_streaming_ep_addr(0));
+            tx_busy = 0;
+        }
     }
 
     xEventGroupSetBits(s_uvc_device.event_group, UVC1_EVENT_EXIT_DONE);
@@ -219,6 +245,13 @@ static void video_task2(void *arg)
         }
 
         if (!tud_video_n_streaming(1, 0)) {
+            if (already_start) {
+                if (s_uvc_device.user_config[1].stop_cb) {
+                    s_uvc_device.user_config[1].stop_cb(s_uvc_device.user_config[1].cb_ctx);
+                }
+                uvc_reset_streaming_ep(uvc_streaming_ep_addr(1));
+                ulTaskNotifyTake(pdTRUE, 0);
+            }
             already_start = 0;
             frame_num = 0;
             tx_busy = 0;
@@ -238,12 +271,16 @@ static void video_task2(void *arg)
         }
 
         if (tx_busy) {
-            uint32_t xfer_done = ulTaskNotifyTake(pdTRUE, 1);
+            uint32_t xfer_done = ulTaskNotifyTake(pdTRUE, pdMS_TO_TICKS(500));
             if (xfer_done == 0) {
-                continue;
+                ESP_LOGW(TAG, "frame transfer timeout, resetting stream endpoint");
+                uvc_reset_streaming_ep(uvc_streaming_ep_addr(1));
+                tx_busy = 0;
             }
             ++frame_num;
-            tx_busy = 0;
+            if (xfer_done) {
+                tx_busy = 0;
+            }
         }
 
         start_ms += s_uvc_device.interval_ms[1];
@@ -264,9 +301,14 @@ static void video_task2(void *arg)
         frame_len = pic->len;
         memcpy(uvc_buffer, pic->buf, frame_len);
         s_uvc_device.user_config[1].fb_return_cb(pic, s_uvc_device.user_config[1].cb_ctx);
-        tx_busy = 1;
-        tud_video_n_frame_xfer(1, 0, (void *)uvc_buffer, frame_len);
-        ESP_LOGD(TAG, "frame %" PRIu32 " transfer start, size %" PRIu32, frame_num, frame_len);
+        if (tud_video_n_frame_xfer(1, 0, (void *)uvc_buffer, frame_len)) {
+            tx_busy = 1;
+            ESP_LOGD(TAG, "frame %" PRIu32 " transfer start, size %" PRIu32, frame_num, frame_len);
+        } else {
+            ESP_LOGW(TAG, "frame %" PRIu32 " transfer refused, dropping frame", frame_num);
+            uvc_reset_streaming_ep(uvc_streaming_ep_addr(1));
+            tx_busy = 0;
+        }
     }
 
     xEventGroupSetBits(s_uvc_device.event_group, UVC2_EVENT_EXIT_DONE);
@@ -299,11 +341,7 @@ int tud_video_commit_cb(uint_fast8_t ctl_idx, uint_fast8_t stm_idx,
         s_uvc_device.user_config[ctl_idx].stop_cb(s_uvc_device.user_config[ctl_idx].cb_ctx);
     }
     /* Flush orphaned in-flight xfer left by host close without SET_INTERFACE. */
-#if CONFIG_UVC_SUPPORT_TWO_CAM
-    uvc_reset_streaming_ep(ctl_idx == 0 ? EPNUM_CAM1_VIDEO_IN : EPNUM_CAM2_VIDEO_IN);
-#else
-    uvc_reset_streaming_ep(EPNUM_CAM1_VIDEO_IN);
-#endif
+    uvc_reset_streaming_ep(uvc_streaming_ep_addr(ctl_idx));
     esp_err_t ret = s_uvc_device.user_config[ctl_idx].start_cb(s_uvc_device.format[ctl_idx], UVC_FRAMES_INFO[ctl_idx][frame_index].width,
                                                                UVC_FRAMES_INFO[ctl_idx][frame_index].height, UVC_FRAMES_INFO[ctl_idx][frame_index].rate, s_uvc_device.user_config[ctl_idx].cb_ctx);
 
