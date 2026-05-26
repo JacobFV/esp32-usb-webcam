@@ -26,10 +26,13 @@ Verified hardware state:
 
 Current local hardware state as of 2026-05-26:
 - `pio run` succeeds in this standalone repo.
-- `lsusb` currently shows the plugged board as `1a86:55d3 QinHeng Electronics USB Single Serial`.
-- `/dev/ttyACM0` exists.
-- No `/dev/v4l/by-id/usb-Espressif_ESP_UVC_Device_12345678-video-index0` symlink is currently present.
-- This means the next session should start by getting the board back into a clean flash/app state, then re-verifying UVC enumeration and frame capture.
+- The temporary `1a86:55d3 QinHeng Electronics USB Single Serial` /
+  `/dev/ttyACM0` device was a servo driver board, not the ESP32-S3 webcam.
+- After the servo board was unplugged, the ESP32-S3 webcam reappeared as
+  `303a:8000 Espressif ESP UVC Device` with `/dev/video0` and `/dev/video1`.
+- The currently flashed ESP32-S3 app is UVC-only. It exposes no
+  `/dev/ttyACM*`/serial-JTAG endpoint, so there is no software flash path from
+  the current app state.
 
 Update from 2026-05-26:
 - The advertised default mode was changed from HD to VGA so normal camera apps
@@ -74,6 +77,12 @@ Update from 2026-05-26:
   safe software flashing path from the current app state. Flashing still
   requires getting the ESP32-S3 into ROM serial/JTAG bootloader mode or adding a
   firmware reboot-to-bootloader path in a future image.
+- Added a future firmware recovery path: the UVC firmware now builds as a
+  composite UVC + CDC ACM device. After that image is flashed, the host should
+  see both video nodes and a serial node. Sending `bootloader` or
+  `reboot-bootloader` to the serial node, or opening it at 1200 baud and
+  closing it, requests ESP32-S3 ROM download mode for the next flash. This is
+  built and documented, but it is not yet flashed onto the board.
 
 Important: do not reintroduce Wi-Fi/AP camera firmware.
 - Earlier HTTP/AP firmware was flashed and then rejected.
@@ -141,9 +150,12 @@ Generated files intentionally excluded:
 - `sdkconfig.*` except `sdkconfig.defaults`
 
 Recommended next work:
-1. Replug/reset the board so `/dev/ttyACM0` is usable for flashing.
+1. Put the ESP32-S3 into ROM download bootloader mode. If no BOOT button is
+   accessible, hold GPIO0 low while resetting EN/RST.
 2. Flash from this standalone repo.
-3. Confirm it re-enumerates as `303a:8000 Espressif ESP UVC Device`.
+3. Confirm it re-enumerates as `303a:8000 Espressif ESP UVC Device` plus a CDC
+   ACM serial node.
 4. Confirm `/dev/video0` capture works reliably after repeated open/close cycles.
-5. Improve the firmware until it behaves like a normal webcam in common apps:
+5. Confirm the CDC recovery path can reboot the board into ROM download mode.
+6. Improve the firmware until it behaves like a normal webcam in common apps:
    stable enumeration, predictable video node, usable default resolution, no capture hangs, reasonable frame rate, and graceful recovery after app close.

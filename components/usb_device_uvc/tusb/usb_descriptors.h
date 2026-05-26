@@ -40,6 +40,9 @@
 #if CONFIG_UVC_SUPPORT_TWO_CAM
 #define EPNUM_CAM2_VIDEO_IN    0x82
 #endif
+#define EPNUM_CDC_NOTIF        0x83
+#define EPNUM_CDC_OUT          0x03
+#define EPNUM_CDC_IN           0x84
 
 enum {
 #if (CFG_TUD_VIDEO)
@@ -50,6 +53,8 @@ enum {
     ITF_NUM_VIDEO_STREAMING_2,
 #endif
 #endif
+    ITF_NUM_CDC,
+    ITF_NUM_CDC_DATA,
     ITF_NUM_TOTAL
 };
 

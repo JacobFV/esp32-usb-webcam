@@ -51,6 +51,30 @@ On the verified setup the device appeared as:
 /dev/v4l/by-id/usb-Espressif_ESP_UVC_Device_12345678-video-index0 -> ../../video0
 ```
 
+## Recovery Serial
+
+Current firmware builds as a composite USB device:
+
+- UVC video for normal webcam apps.
+- CDC ACM serial for recovery/control.
+
+After this image is flashed, the host should still get the `/dev/video*` nodes,
+and it should also get a `/dev/ttyACM*` serial node. The serial node is a rescue
+path, not the video transport.
+
+To reboot the device into the ESP32-S3 ROM download bootloader from the serial
+control port:
+
+```bash
+printf 'bootloader\r\n' > /dev/ttyACM0
+```
+
+Opening the serial port at `1200` baud and closing it also requests ROM download
+mode, matching the common native-USB bootloader convention.
+
+Once the board re-enumerates in ROM download mode, flash with PlatformIO using
+the new serial port.
+
 The firmware advertises MJPEG UVC modes that fit the ESP32-S3 full-speed USB
 link reliably:
 
@@ -117,6 +141,9 @@ The known-good board returned a `640x480` frame and saved a real image from
 - If upload fails with `No serial data received`, put the XIAO ESP32S3 Sense in
   bootloader mode manually, then retry the `pio run -t upload` command. On this
   board that usually means holding BOOT, tapping RESET, then releasing BOOT.
+- If no BOOT button is accessible, the electrical equivalent is holding GPIO0
+  low while resetting the ESP32-S3. The ROM bootloader is not part of this
+  firmware and cannot be overwritten by this project.
 - If no `/dev/video*` node appears, check `dmesg -w` while plugging in the
   board.
 - If build errors mention `driver/ledc.h`, confirm PlatformIO is using

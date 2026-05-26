@@ -11,8 +11,12 @@
 #include "freertos/task.h"
 #include "esp_timer.h"
 #include "esp_log.h"
+#include "esp_system.h"
+#include "soc/rtc_cntl_reg.h"
+#include "soc/soc.h"
 #include "camera_pin.h"
 #include "esp_camera.h"
+#include "tusb.h"
 #include "usb_device_uvc.h"
 #include "uvc_frame_config.h"
 #if CONFIG_CAMERA_MODULE_ESP_S3_EYE
@@ -45,6 +49,66 @@ typedef struct {
 } fb_t;
 
 static fb_t s_fb;
+static cdc_line_coding_t s_cdc_line_coding = {
+    .bit_rate = 115200,
+    .stop_bits = 0,
+    .parity = 0,
+    .data_bits = 8,
+};
+
+static void reboot_to_rom_download_mode(void)
+{
+    ESP_LOGW(TAG, "Rebooting into ROM download mode");
+    if (tud_cdc_connected()) {
+        tud_cdc_write_str("Rebooting into ROM download mode\r\n");
+        tud_cdc_write_flush();
+        vTaskDelay(pdMS_TO_TICKS(100));
+    }
+    REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
+    esp_restart();
+}
+
+static void cdc_control_task(void)
+{
+    static char command[64];
+    static size_t command_len = 0;
+
+    while (tud_cdc_available()) {
+        char ch = (char)tud_cdc_read_char();
+        if (ch == '\r' || ch == '\n') {
+            command[command_len] = '\0';
+            if (strcmp(command, "bootloader") == 0 || strcmp(command, "reboot-bootloader") == 0) {
+                reboot_to_rom_download_mode();
+            } else if (strcmp(command, "help") == 0 || strcmp(command, "?") == 0) {
+                tud_cdc_write_str("Commands: bootloader, reboot-bootloader\r\n");
+                tud_cdc_write_flush();
+            } else if (command_len > 0) {
+                tud_cdc_write_str("Unknown command. Try: help\r\n");
+                tud_cdc_write_flush();
+            }
+            command_len = 0;
+        } else if (command_len + 1 < sizeof(command)) {
+            command[command_len++] = ch;
+        } else {
+            command_len = 0;
+        }
+    }
+}
+
+void tud_cdc_line_coding_cb(uint8_t itf, cdc_line_coding_t const *p_line_coding)
+{
+    (void)itf;
+    s_cdc_line_coding = *p_line_coding;
+}
+
+void tud_cdc_line_state_cb(uint8_t itf, bool dtr, bool rts)
+{
+    (void)itf;
+    (void)rts;
+    if (!dtr && s_cdc_line_coding.bit_rate == 1200) {
+        reboot_to_rom_download_mode();
+    }
+}
 
 static esp_err_t camera_init(uint32_t xclk_freq_hz, pixformat_t pixel_format, framesize_t frame_size, int jpeg_quality, uint8_t fb_count)
 {
@@ -312,6 +376,7 @@ void app_main(void)
         vTaskDelay(pdMS_TO_TICKS(100));
 #endif
 #else
+        cdc_control_task();
         vTaskDelay(pdMS_TO_TICKS(100));
 #endif
     }

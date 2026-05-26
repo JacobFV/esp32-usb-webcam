@@ -34,16 +34,9 @@ Earlier successful board identity:
 Current host state recorded on 2026-05-26:
 
 - `pio run` succeeds.
-- The plugged board currently appears as `1a86:55d3 QinHeng Electronics USB Single Serial`.
-- `/dev/ttyACM0` exists.
-- The previous `/dev/video0` UVC node is not currently present.
-- Upload to `/dev/ttyACM0` failed with `No serial data received` after the
-  reliable-mode firmware change.
-- DTR/RTS toggles and a 1200-baud touch did not move the device out of
-  `1a86:55d3`.
-- The user then unplugged a servo driver board and `/dev/ttyACM0` /
-  `1a86:55d3` disappeared, so that serial device was likely not the ESP32-S3
-  webcam. Esptool never connected and did not flash it.
+- The earlier `1a86:55d3 QinHeng Electronics USB Single Serial` /
+  `/dev/ttyACM0` device was a servo driver board, not the ESP32-S3 webcam.
+  Upload to that port failed before flashing because esptool never connected.
 - The ESP32 later appeared as `303a:8000 Espressif ESP UVC Device` with
   `/dev/video0` and `/dev/video1`. The `video-index0` path passed 10 repeated
   OpenCV open/read/release cycles at `640x480`; `video-index1` timed out as a
@@ -64,6 +57,10 @@ Current host state recorded on 2026-05-26:
   `/dev/ttyACM*`/serial-JTAG endpoint. There is no safe software flashing path
   from this app state; flashing still requires ROM bootloader mode or a future
   firmware reboot-to-bootloader path.
+- The next firmware image now builds as composite UVC + CDC ACM. Once flashed,
+  the host should see both webcam video nodes and a serial recovery/control
+  node. Sending `bootloader` or `reboot-bootloader` to the CDC node, or opening
+  it at 1200 baud and closing it, requests ESP32-S3 ROM download mode.
 
 ## Known Good Proof
 
@@ -204,6 +201,12 @@ drops that frame and resets the stream endpoint instead of marking the transfer
 busy forever. This is intended to make repeated app opens, closes, and app
 switches recover like a normal webcam.
 
+The current application also exposes a CDC ACM recovery interface in addition
+to UVC. This serial function is intentionally small: it accepts `help`,
+`bootloader`, and `reboot-bootloader`, and it also treats a 1200-baud close as a
+request to reboot into the ESP32-S3 ROM download bootloader. This is meant to
+avoid future UVC-only lockouts.
+
 ## Failure Modes Already Seen
 
 - Wi-Fi/AP camera firmware was the wrong interface. Do not restore it.
@@ -220,7 +223,10 @@ switches recover like a normal webcam.
 - Fresh flash from this repo succeeds.
 - `lsusb` shows `303a:8000 Espressif ESP UVC Device`.
 - `/dev/v4l/by-id/usb-Espressif_ESP_UVC_Device_12345678-video-index0` exists.
+- A CDC ACM serial node exists for recovery/control.
 - A bounded OpenCV capture succeeds at `640x480`.
 - Repeated capture open/close succeeds at least 10 times.
 - A normal webcam consumer can see and open the camera.
+- The CDC command or 1200-baud close path can reboot the board into ROM
+  download mode.
 - Documentation is updated with any new exact command or issue encountered.
