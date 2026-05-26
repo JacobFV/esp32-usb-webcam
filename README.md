@@ -84,6 +84,8 @@ The known-good board returned a `640x480` frame and saved a real image from
   small PlatformIO-compatible CMake change.
 - Generated PlatformIO and ESP-IDF outputs are ignored. Rebuild from source with
   `pio run`.
+- A short build write-up is published as a public gist:
+  https://gist.github.com/JacobFV/f36f57def2b0b1446036fef3fa4c1016
 
 ## Troubleshooting
 
