@@ -30,4 +30,4 @@ The final proof was simple: after flashing, Linux reported an `Espressif ESP UVC
 Device`, created `/dev/video0`, and OpenCV captured a real `640x480` frame from
 it.
 
-Project repo: https://github.com/brandonin/esp32-usb-webcam
+Project repo: https://github.com/JacobFV/esp32-usb-webcam
