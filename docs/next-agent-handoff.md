@@ -55,7 +55,8 @@ Current host state recorded on 2026-05-26:
   present. A host `usbreset 303a:8000` then hung in the kernel.
 - After physical unplug/replug, the board re-enumerated as UVC and again passed
   10 repeated `640x480` OpenCV reads from `video-index0`. A sequential FFmpeg
-  `640x480` MJPEG capture also succeeded.
+  `640x480` MJPEG capture also succeeded. FFmpeg default-open selected
+  `640x480`, and 10 repeated FFmpeg open/read/close cycles succeeded.
 - A firmware-side recovery patch has been committed but not flashed. It drops
   refused frame transfers instead of waiting forever, times out stale in-flight
   transfers, resets the streaming endpoint on stream stop, and builds cleanly.

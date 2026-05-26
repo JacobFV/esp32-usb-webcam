@@ -63,7 +63,8 @@ Update from 2026-05-26:
   physical unplug/replug is required before more live testing.
 - After physical replug, the board re-enumerated as UVC and again passed 10
   repeated `640x480` reads from the `video-index0` by-id path. A sequential
-  FFmpeg `640x480` MJPEG read also succeeded.
+  FFmpeg `640x480` MJPEG read also succeeded. FFmpeg default-open selected
+  `640x480`, and 10 repeated FFmpeg open/read/close cycles succeeded.
 - Added a firmware-side stream recovery patch: failed
   `tud_video_n_frame_xfer()` starts are now dropped instead of treated as
   in-flight transfers forever, stale transfers time out and reset the streaming
