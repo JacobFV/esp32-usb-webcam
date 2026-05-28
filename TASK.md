@@ -84,6 +84,20 @@ Update from 2026-05-26:
   closing it, requests ESP32-S3 ROM download mode for the next flash. This is
   built and documented, but it is not yet flashed onto the board.
 
+Update from 2026-05-27:
+- Re-tested the plugged board. It still enumerates as `303a:8000 Espressif ESP
+  UVC Device` with `/dev/video0` and `/dev/video1`, and no `/dev/ttyACM*`.
+- Descriptor inspection still shows the UVC-only image with two Video
+  interfaces and first advertised frame `1280x720 @ 15fps`.
+- `tools/verify_uvc.py --loops 3 --device
+  /dev/v4l/by-id/usb-Espressif_ESP_UVC_Device_12345678-video-index0` passed
+  with three `640x480` frame reads.
+- The currently flashed firmware corresponds to `54e61aa`. Commits through
+  `da6cf4b` are firmware-input equivalent because they changed docs only.
+- Added `docs/releases.md` and README release mapping. GitHub releases should
+  mark `v0.1` as the currently flashed UVC-only image and `v0.2` as the latest
+  recovery-capable firmware.
+
 Important: do not reintroduce Wi-Fi/AP camera firmware.
 - Earlier HTTP/AP firmware was flashed and then rejected.
 - It was erased with `esptool.py erase_flash`.

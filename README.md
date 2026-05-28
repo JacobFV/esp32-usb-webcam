@@ -121,6 +121,15 @@ PY
 The known-good board returned a `640x480` frame and saved a real image from
 `/dev/video0`.
 
+## Release Map
+
+Release details are tracked in [docs/releases.md](docs/releases.md).
+
+- `v0.1` marks the firmware currently flashed on the physical board:
+  `54e61aa01dbaf6be2d96e71c09f14ed6deaeff5d`.
+- `v0.2` marks the latest recovery-capable firmware:
+  `3915250688fd6398863fa6b4145b02824b0fefe6`.
+
 ## Notes
 
 - This is USB UVC firmware only. There is deliberately no Wi-Fi setup, AP mode,
